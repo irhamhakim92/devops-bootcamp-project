@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>DevOps Bootcamp Project</title>
+  </head>
+  <body>
+    <h1>✅ CI/CD to ECR is working!</h1>
+    <p>Deployed via GitHub Actions → Docker build → Amazon ECR</p>
+  </body>
+</html>
+
+Create Dockerfile:
+FROM nginx:alpine
+COPY index.html /usr/share/nginx/html/index.html
+EXPOSE 80
