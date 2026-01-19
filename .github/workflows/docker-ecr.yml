@@ -60,9 +60,9 @@ jobs:
           chmod 600 ~/.ssh/web.pem
 
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/web.pem ec2-user@${WEB_HOST} "\
-            sudo docker pull ${ECR_REGISTRY}/my-webapp:latest && \
-            sudo docker rm -f web_app >/dev/null 2>&1 || true && \
-            sudo docker run -d --name web_app --restart always -p 80:80 ${ECR_REGISTRY}/my-webapp:latest"
+          sudo docker pull ${ECR_REGISTRY}/my-webapp:latest && \
+          sudo docker rm -f web_app >/dev/null 2>&1 || true && \
+          sudo docker run -d --name web_app --restart always -p 80:80 ${ECR_REGISTRY}/my-webapp:latest"
 
 
 
