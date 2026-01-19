@@ -1,4 +1,3 @@
-# devops-bootcamp-project
 # DevOps Bootcamp Final Project 🚀
 
 This project demonstrates a complete DevOps pipeline using **Terraform, Ansible, Docker, GitHub Actions, Amazon ECR, Prometheus, Grafana, and Alertmanager**.
