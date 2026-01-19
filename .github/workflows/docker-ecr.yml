@@ -35,24 +35,15 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           set -euxo pipefail
-          echo "PWD=$(pwd)"
-          echo "GITHUB_REF=${GITHUB_REF}"
-          echo "Listing repo root:"
-          ls -la
 
-          echo "Finding Dockerfile anywhere:"
-          find . -maxdepth 3 -type f -iname "dockerfile" -print
+          # sanitize secrets (removes newline / spaces)
+          ECR_REGISTRY="$(echo -n "$ECR_REGISTRY" | tr -d '\r\n' | xargs)"
+          echo "ECR_REGISTRY length: ${#ECR_REGISTRY}"
 
-          echo "Show git status:"
-          git status --porcelain || true
-
-          # If Dockerfile is at root, this should succeed:
-          test -f ./Dockerfile
-
-          docker version
           docker build -f ./Dockerfile -t "${ECR_REGISTRY}/${{ env.ECR_REPOSITORY }}:${IMAGE_TAG}" .
           docker push "${ECR_REGISTRY}/${{ env.ECR_REPOSITORY }}:${IMAGE_TAG}"
           docker tag "${ECR_REGISTRY}/${{ env.ECR_REPOSITORY }}:${IMAGE_TAG}" "${ECR_REGISTRY}/${{ env.ECR_REPOSITORY }}:latest"
           docker push "${ECR_REGISTRY}/${{ env.ECR_REPOSITORY }}:latest"
+
 
 
