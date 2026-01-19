@@ -49,34 +49,30 @@ jobs:
         shell: bash
         env:
           WEB_HOST: ${{ secrets.WEB_HOST }}
-          WEB_SSH_KEY: ${{ secrets.WEB_SSH_KEY }}
+          WEB_SSH_KEY_B64: ${{ secrets.WEB_SSH_KEY_B64 }}
           ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
           ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
         run: |
           set -euxo pipefail
 
-          # sanitize secrets (remove CR/LF issues)
           WEB_HOST="$(echo -n "$WEB_HOST" | tr -d '\r\n' | xargs)"
           ECR_REGISTRY="$(echo -n "$ECR_REGISTRY" | tr -d '\r\n' | xargs)"
 
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
 
-          # write key safely (preserve newlines)
-          printf '%s\n' "$WEB_SSH_KEY" > ~/.ssh/web.pem
+          # decode key safely
+          echo "$WEB_SSH_KEY_B64" | base64 -d > ~/.ssh/web.pem
           chmod 600 ~/.ssh/web.pem
 
-          # avoid "bad permissions" and host prompts
           ssh-keyscan -H "$WEB_HOST" >> ~/.ssh/known_hosts
 
-          # Deploy (pull latest + restart container)
-          ssh -i ~/.ssh/web.pem ec2-user@"$WEB_HOST" <<EOF
-          set -e
-          sudo docker pull ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
-          sudo docker rm -f web_app >/dev/null 2>&1 || true
-          sudo docker run -d --name web_app --restart always -p 80:80 ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
-          sudo docker ps | head
-          EOF
+          ssh -i ~/.ssh/web.pem ec2-user@"$WEB_HOST" "echo SSH_OK"
+          ssh -i ~/.ssh/web.pem ec2-user@"$WEB_HOST" "\
+            sudo docker pull ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest && \
+            sudo docker rm -f web_app >/dev/null 2>&1 || true && \
+            sudo docker run -d --name web_app --restart always -p 80:80 ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
+
 
 
 
