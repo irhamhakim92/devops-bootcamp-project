@@ -65,6 +65,18 @@ jobs:
           echo "$WEB_SSH_KEY_B64" | base64 -d > ~/.ssh/web.pem
           chmod 600 ~/.ssh/web.pem
 
+      - name: Debug SSH connectivity
+        shell: bash
+        env:
+          WEB_HOST: ${{ secrets.WEB_HOST }}
+        run: |
+          set -eux
+          WEB_HOST="$(echo -n "$WEB_HOST" | tr -d '\r\n' | xargs)"
+          echo "WEB_HOST=${WEB_HOST}"
+          getent hosts "$WEB_HOST" || true
+          timeout 5 bash -lc "cat </dev/null >/dev/tcp/${WEB_HOST}/22" && echo "port22 open" || echo "port22 closed"
+
+
           ssh-keyscan -H "$WEB_HOST" >> ~/.ssh/known_hosts
 
           ssh -i ~/.ssh/web.pem ec2-user@"$WEB_HOST" "echo SSH_OK"
