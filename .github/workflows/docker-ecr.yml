@@ -50,7 +50,8 @@ jobs:
           WEB_HOST: ${{ secrets.WEB_HOST }}
           WEB_SSH_KEY_B64: ${{ secrets.WEB_SSH_KEY_B64 }}
           ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          ECR_REPOSITORY: my-webapp
+          AWS_REGION: ap-southeast-1
         run: |
           set -euxo pipefail
           WEB_HOST="$(echo -n "$WEB_HOST" | tr -d '\r\n' | xargs)"
@@ -64,9 +65,17 @@ jobs:
           timeout 10s ssh-keyscan -H "$WEB_HOST" >> ~/.ssh/known_hosts || true
 
           ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/web.pem ec2-user@"$WEB_HOST" "\
-            docker pull ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest && \
-            docker rm -f web_app >/dev/null 2>&1 || true && \
-            docker run -d --name web_app --restart always -p 80:80 ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
+            set -euxo pipefail; \
+            AWS_REGION=${AWS_REGION}; \
+            ECR_REGISTRY=${ECR_REGISTRY}; \
+            ECR_REPOSITORY=${ECR_REPOSITORY}; \
+            aws ecr get-login-password --region \$AWS_REGION | docker login --username AWS --password-stdin \$ECR_REGISTRY; \
+            docker rm -f web_app >/dev/null 2>&1 || true; \
+            docker pull \$ECR_REGISTRY/\$ECR_REPOSITORY:latest; \
+            docker run -d --name web_app --restart always -p 80:80 \$ECR_REGISTRY/\$ECR_REPOSITORY:latest; \
+            docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}' | sed -n '1p;/web_app/p' \
+          "
+
 
 
 
