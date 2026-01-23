@@ -44,7 +44,7 @@ jobs:
           docker tag "${ECR_REGISTRY}/${{ env.ECR_REPOSITORY }}:${IMAGE_TAG}" "${ECR_REGISTRY}/${{ env.ECR_REPOSITORY }}:latest"
           docker push "${ECR_REGISTRY}/${{ env.ECR_REPOSITORY }}:latest"
 
-      - name: Deploy to Web EC2 (SSH) - no AWS CLI required on EC2
+      - name: Deploy to Web EC2 (SSH)
         shell: bash
         env:
           WEB_HOST: ${{ secrets.WEB_HOST }}
@@ -54,6 +54,7 @@ jobs:
           AWS_REGION: ap-southeast-1
         run: |
           set -euxo pipefail
+
           WEB_HOST="$(echo -n "$WEB_HOST" | tr -d '\r\n' | xargs)"
           ECR_REGISTRY="$(echo -n "$ECR_REGISTRY" | tr -d '\r\n' | xargs)"
 
@@ -63,20 +64,22 @@ jobs:
           chmod 600 ~/.ssh/web.pem
           timeout 10s ssh-keyscan -H "$WEB_HOST" >> ~/.ssh/known_hosts || true
 
-          # Get ECR password on the GitHub runner (AWS auth works here)
+          # Get ECR password on GitHub runner (AWS auth works here)
           ECR_PASS="$(aws ecr get-login-password --region "$AWS_REGION")"
 
-          # Deploy on EC2 (only Docker needed on EC2)
-          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/web.pem ec2-user@"$WEB_HOST" "\
-            set -euxo pipefail; \
-            echo '$ECR_PASS' | docker login --username AWS --password-stdin $ECR_REGISTRY; \
-            docker rm -f web_app >/dev/null 2>&1 || true; \
-            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest; \
-            docker run -d --name web_app --restart always -p 80:80 $ECR_REGISTRY/$ECR_REPOSITORY:latest; \
-            docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}' | sed -n '1p;/web_app/p' \
-          "
+          # Run remote commands safely using heredoc
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/web.pem ec2-user@"$WEB_HOST" <<EOF
+          set -euxo pipefail
+          echo "$ECR_PASS" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+          docker rm -f web_app >/dev/null 2>&1 || true
+          docker pull "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          docker run -d --name web_app --restart always -p 80:80 "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}' | sed -n '1p;/web_app/p'
+          EOF
 
-          "
+          
+
+          
 
 
 
